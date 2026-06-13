@@ -233,12 +233,12 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:
 <!-- Image Panel -->
 <div class="img-panel" id="imgPanel">
   <div class="img-panel-head">
-    <h3>🎨 小黑风格配图</h3>
+    <h3>🎨 Bella 风格配图</h3>
     <button class="img-panel-close" onclick="closeImgPanel()">&times;</button>
   </div>
   <div class="img-panel-body" id="imgPanelBody">
     <div style="font-size:13px;color:var(--sub);line-height:1.7;margin-bottom:14px;">
-      点击「生成配图 Prompt」，AI 会分析你的文章，按 <b>Ian 小黑</b> 风格生成正文配图的 Prompt。<br>
+      点击「生成配图 Prompt」，AI 会分析你的文章，按 <b>Bella IP</b> 风格生成正文配图的 Prompt。<br>
       复制 Prompt 到 WorkBuddy 或其他平台生图即可。
     </div>
     <button class="btn btn-img" style="width:100%;margin-bottom:14px" onclick="generateImages()" id="genImgBtn">🖍 生成配图 Prompt</button>
@@ -780,8 +780,8 @@ function finishPolish(result) {
   }
 }
 
-// ===== Image Generation (Ian Xiaohei Style — embedded in workbench) =====
-var IAN_SYSTEM_PROMPT = [
+// ===== Image Generation (Bella IP Style — embedded in workbench) =====
+var BELLA_IP_SYSTEM_PROMPT = [
   'You are an expert illustration strategist for Chinese article illustrations.',
   '',
   'Given a Chinese article, you must:',
@@ -793,7 +793,7 @@ var IAN_SYSTEM_PROMPT = [
   '- "section": the heading or topic of the section (Chinese, short)',
   '- "structureType": one of ["Workflow","Before-After","Concept Metaphor","Method Layers","Character State","Map Route","Mini Comic"]',
   '- "coreIdea": the single idea this image explains (English, 1 sentence)',
-  '- "composition": what xiaohei is doing, main objects, how information flows (English, 1-2 sentences)',
+  '- "composition": what Bella is doing, main objects, how information flows (English, 1-2 sentences)',
   '- "elements": 3-4 visual elements (English, comma separated)',
   '- "labels": 3-5 short Chinese handwritten labels (Chinese, slash separated)',
   '- "fullPrompt": the COMPLETE image generation prompt in English, following the template below',
@@ -801,21 +801,21 @@ var IAN_SYSTEM_PROMPT = [
   'The fullPrompt field MUST follow this template exactly:',
   '---',
   'Generate one standalone 16:9 horizontal Chinese article illustration.',
-  'Visual DNA: Pure white background. Minimalist black hand-drawn line art. Slightly wobbly pen lines. Lots of empty white space. Sparse red/orange/blue handwritten Chinese annotations. Clean absurd product-sketch feeling. No gradients, no shadows, no paper texture, no complex background, no commercial vector style, no PPT infographic look, no cute mascot poster, no children illustration, no realistic UI.',
-  'Recurring IP character: xiaohei, a small solid-black absurd creature with white dot eyes, tiny thin legs, blank serious expression, slightly uneven hand-drawn body shape. xiaohei must perform the core conceptual action, not decorate the scene. Make xiaohei serious, deadpan, and slightly bizarre, not cute.',
+  'Visual DNA: Warm cream background (#F7F5F0). Minimalist hand-drawn line art in warm ink tones. Gentle slightly wobbly pen lines. Lots of breathing space. Sparse handwritten Chinese annotations in warm brown/terracotta and sage green. Clean warm personal-notebook-sketch feeling. No gradients, no heavy shadows, no cold corporate vector style, no PPT infographic look, no cute mascot poster, no children illustration, no realistic UI.',
+  'Recurring IP character: Bella, a young woman with shoulder-length dark hair, wearing a simple white tee and relaxed casual clothes. She has a calm, warm, and slightly playful expression. Her body is drawn with minimalist hand-drawn lines — not overly detailed, not cartoonish, but genuine and personal. Bella must be actively engaged in the core conceptual action (thinking, observing, connecting ideas, pouring coffee, reading, traveling, discovering something), not just standing passively as decoration. Make Bella curious, thoughtful, and warm — like a friend explaining something on a napkin.',
   'Theme: {theme}',
   'Structure type: {structureType}',
   'Core idea: {coreIdea}',
   'Composition: {composition}',
   'Suggested elements: {elements}',
   'Chinese handwritten labels: {labels}',
-  'Color use: Black for main line art and xiaohei. Orange for main flow/path/arrows. Red only for key warnings/problems/results. Blue only for secondary notes or feedback/system state.',
-  'Constraints: One image explains only one core structure. Keep the main subject around 40%-60% of the canvas. Preserve at least 35% blank white space. Use at most 5-8 short handwritten Chinese labels. Do not write a title in the top-left corner. Do not write the structure type on the image. Do not make it a formal diagram, course slide, or dense explainer. It should be clear but not instructional, interesting but not childish, strange but clean.',
+  'Color use: Warm terracotta brown (#C4633E) for main line art, Bella outline, and key emphasis. Sage green (#2D6A4F) for paths, flows, arrows, and secondary elements. Warm amber for highlights and connections. Cream (#F7F5F0) background with plenty of breathing room.',
+  'Constraints: One image explains only one core structure. Keep the main subject around 40%-60% of the canvas. Preserve at least 35% blank breathing space. Use at most 5-8 short handwritten Chinese labels. Do not write a title in the top-left corner. Do not write the structure type on the image. Do not make it a formal diagram, course slide, or dense explainer. It should feel like a warm personal notebook sketch — clear but not instructional, inviting but not childish, thoughtful but not stiff.',
   '---',
   '',
   'CRITICAL RULES:',
-  '- xiaohei (small black creature) MUST be in every image performing the core action',
-  '- Every image must have a pure white background',
+  '- Bella (young woman character) MUST be in every image performing the core action',
+  '- Every image must have a warm cream background (#F7F5F0)',
   '- Every image must have lots of whitespace (at least 35%)',
   '- Do NOT copy or reuse compositions from prior examples — invent fresh metaphors',
   '- Keep Chinese labels short (2-8 characters each), at most 5-8 total',
@@ -847,7 +847,7 @@ function generateImages() {
   var body = JSON.stringify({
     model: 'deepseek-chat',
     messages: [
-      { role: 'system', content: IAN_SYSTEM_PROMPT },
+      { role: 'system', content: BELLA_IP_SYSTEM_PROMPT },
       { role: 'user', content: content }
     ],
     temperature: 0.8,
