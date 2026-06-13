@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>内容工作台</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F5F0;--card:#fff;--text:#1A1A2E;--sub:#6B7280;--muted:#9CA3AF;
+  --accent:#C4633E;--accent-l:#F5E6DE;--green:#2D6A4F;--green-l:#DEF2E8;
+  --border:#E5E1D8;--border-l:#F0EDE6;
+  --r:12px;--rs:8px;
+  --serif:Georgia,"Noto Serif SC",serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --mono:"SF Mono","Fira Code",monospace;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.6;height:100vh;display:flex;flex-direction:column}
+
+/* ===== API Key Banner ===== */
+.api-banner{display:flex;align-items:center;gap:10px;padding:10px 20px;background:linear-gradient(135deg,#FFF3E0,#FFF8E1);border-bottom:2px solid var(--accent);flex-shrink:0}
+.api-banner.hidden{display:none}
+.api-banner label{font-size:13px;font-weight:600;white-space:nowrap;color:var(--accent)}
+.api-banner input{flex:1;padding:7px 12px;border:1.5px solid var(--accent);border-radius:var(--rs);font-size:14px;font-family:var(--sans);background:#fff;color:var(--text)}
+.api-banner input:focus{outline:none;box-shadow:0 0 0 2px var(--accent-l)}
+.api-banner .save-btn{padding:7px 16px;border:none;border-radius:var(--rs);background:var(--accent);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.api-banner .save-btn:hover{background:#B35834}
+.api-banner .status{font-size:12px;font-weight:600;white-space:nowrap}
+.api-banner .status.ok{color:var(--green)}
+.api-banner .status.no{color:var(--accent)}
+
+/* ===== Top Bar ===== */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0}
+.topbar h1{font-family:var(--serif);font-size:18px;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.template-select{padding:6px 12px;border:1.5px solid var(--border);border-radius:var(--rs);font-size:13px;font-family:var(--sans);background:var(--card);color:var(--text);cursor:pointer}
+.template-select:focus{outline:none;border-color:var(--accent)}
+.stat{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+.stat.over{color:var(--accent);font-weight:600}
+
+/* ===== Main Area ===== */
+.main{flex:1;display:flex;overflow:hidden}
+
+/* ===== Editor ===== */
+.editor-pane{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--border)}
+.editor-header{padding:8px 16px;font-size:12px;font-weight:600;color:var(--sub);background:var(--border-l);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.editor{flex:1;padding:20px;border:none;resize:none;font-family:var(--sans);font-size:15px;line-height:1.9;color:var(--text);background:var(--bg);outline:none}
+.editor::placeholder{color:var(--muted)}
+
+/* ===== Preview ===== */
+.preview-pane{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.preview-header{padding:8px 16px;font-size:12px;font-weight:600;color:var(--sub);background:var(--border-l);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.preview-body{flex:1;padding:20px 24px;overflow-y:auto;background:var(--card)}
+
+/* Rendered Markdown */
+.md h1{font-size:22px;font-weight:700;font-family:var(--serif);margin:0 0 14px;line-height:1.3}
+.md h2{font-size:17px;font-weight:600;margin:20px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border-l)}
+.md h3{font-size:15px;font-weight:600;margin:16px 0 6px}
+.md p{margin:8px 0}
+.md ul,.md ol{margin:8px 0;padding-left:22px}
+.md li{margin:3px 0}
+.md strong{font-weight:700}
+.md em{font-style:italic}
+.md blockquote{border-left:3px solid var(--accent);padding-left:14px;margin:12px 0;color:var(--sub);font-style:italic}
+.md hr{border:none;border-top:1px solid var(--border);margin:16px 0}
+.md code{background:var(--border-l);padding:2px 5px;border-radius:3px;font-size:13px;font-family:var(--mono)}
+.md pre{background:#1E1E2E;color:#CDD6F4;padding:14px;border-radius:var(--rs);overflow-x:auto;margin:12px 0;font-size:13px;font-family:var(--mono);line-height:1.6}
+.md pre code{background:none;padding:0;color:inherit}
+.md table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+.md th,.md td{padding:6px 10px;border:1px solid var(--border);text-align:left}
+.md th{background:var(--border-l);font-weight:600}
+
+.empty-hint{text-align:center;color:var(--muted);padding:40px 20px;font-size:14px}
+
+/* ===== Bottom Bar ===== */
+.bottombar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--card);border-top:1px solid var(--border);flex-shrink:0;gap:10px;flex-wrap:wrap}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 16px;border:none;border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;font-family:var(--sans)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-g{background:var(--green);color:#fff}
+.btn-g:hover{background:#245A42}
+.btn-a{background:var(--accent);color:#fff}
+.btn-a:hover{background:#B35834}
+.btn-o{background:var(--card);color:var(--text);border:1.5px solid var(--border)}
+.btn-o:hover{border-color:var(--text)}
+.btn-img{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+.btn-img:hover{opacity:.9}
+.platform-tags{display:flex;gap:6px}
+.ptag{font-size:11px;padding:3px 10px;border-radius:12px;font-weight:500}
+.ptag-ok{background:var(--green-l);color:var(--green)}
+.ptag-warn{background:#FFF7E6;color:#D48806}
+.ptag-over{background:var(--accent-l);color:var(--accent)}
+
+/* ===== Template Hint ===== */
+.template-hint{display:none;padding:10px 16px;background:var(--accent-l);border-bottom:1px solid var(--border);font-size:12px;line-height:1.6;flex-shrink:0}
+.template-hint.visible{display:block}
+.template-hint b{color:var(--accent)}
+
+/* ===== Polishing Overlay ===== */
+.polish-overlay{display:none;position:fixed;inset:0;background:rgba(247,245,240,.92);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.polish-overlay.show{display:flex}
+.polish-spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.polish-text{font-size:15px;font-weight:600;color:var(--text)}
+.polish-sub{font-size:13px;color:var(--sub)}
+
+/* ===== Toast ===== */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--text);color:#fff;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.15);transition:transform .3s;z-index:9999}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ===== Image Panel ===== */
+.img-panel{display:none;position:fixed;top:0;right:-480px;width:480px;height:100vh;background:var(--card);border-left:1px solid var(--border);z-index:998;flex-direction:column;transition:right .3s ease;box-shadow:-4px 0 20px rgba(0,0,0,.08)}
+.img-panel.show{display:flex;right:0}
+.img-panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.img-panel-head h3{font-size:15px;font-weight:700}
+.img-panel-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);padding:0 4px}
+.img-panel-close:hover{color:var(--text)}
+.img-panel-body{flex:1;overflow-y:auto;padding:16px 18px}
+.img-card{background:var(--bg);border-radius:var(--rs);padding:14px;margin-bottom:12px;border:1px solid var(--border)}
+.img-card-label{font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.img-card-prompt{font-size:12px;line-height:1.5;color:var(--sub);margin-bottom:8px;white-space:pre-wrap;word-break:break-all}
+.img-card-actions{display:flex;gap:6px;flex-wrap:wrap}
+.img-card-actions .btn{padding:4px 10px;font-size:11px}
+.img-result{width:100%;border-radius:var(--rs);margin-top:8px;border:1px solid var(--border)}
+.img-loading{width:100%;aspect-ratio:16/9;border-radius:var(--rs);margin-top:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;background:var(--border-l);color:var(--sub);font-size:13px}
+.img-status{font-size:12px;color:var(--sub);margin-top:6px;text-align:center}
+.img-status.err{color:var(--accent)}
+
+/* ===== Word Count Warning Bar ===== */
+.wc-warning{display:none;padding:6px 20px;background:linear-gradient(90deg,#FEF3C7,#FEE2E2);border-bottom:1px solid #FCA5A5;font-size:12px;align-items:center;gap:8px;flex-shrink:0}
+.wc-warning.show{display:flex}
+
+/* ===== Responsive ===== */
+@media(max-width:768px){
+  .main{flex-direction:column}
+  .editor-pane{border-right:none;border-bottom:1px solid var(--border);flex:1;min-height:40vh}
+  .preview-pane{flex:1;min-height:40vh}
+  .bottombar{flex-direction:column;align-items:stretch}
+  .btn-group{justify-content:center}
+  .platform-tags{justify-content:center}
+  .api-banner{flex-wrap:wrap}
+  .img-panel{width:100%;right:-100%}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== API Key Banner ===== -->
+<div class="api-banner" id="apiBanner">
+  <label>🔑 DeepSeek API Key：</label>
+  <input id="apiKeyInput" type="password" placeholder="粘贴你的 Key（sk-...）">
+  <button class="save-btn" onclick="saveApiKey()">保存</button>
+  <span class="status no" id="apiStatus">未设置</span>
+  <a href="https://platform.deepseek.com/api_keys" target="_blank" style="font-size:11px;color:var(--accent);white-space:nowrap;text-decoration:underline;margin-left:4px">获取 Key →</a>
+</div>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <h1>内容工作台</h1>
+  <div class="topbar-right">
+    <select class="template-select" id="templateSelect" onchange="onTemplateChange()">
+      <option value="">自由写作</option>
+      <optgroup label="清单体">
+        <option value="checklist-resource">干货合集型</option>
+        <option value="checklist-number">数字清单型</option>
+        <option value="checklist-pitfall">避坑排雷型</option>
+      </optgroup>
+      <optgroup label="文学感">
+        <option value="literary-emotional">情感共鸣型</option>
+        <option value="literary-narrative">叙事散文型</option>
+        <option value="literary-philosophical">哲理感悟型</option>
+      </optgroup>
+      <optgroup label="实用技巧">
+        <option value="practical-tutorial">教程步骤型</option>
+        <option value="practical-comparison">对比测评型</option>
+        <option value="practical-guide">避坑指南型</option>
+      </optgroup>
+    </select>
+    <span class="stat" id="charStat">0 字</span>
+  </div>
+</div>
+
+<!-- Template Hint -->
+<div class="template-hint" id="templateHint"></div>
+
+<!-- Word Count Warning -->
+<div class="wc-warning" id="wcWarning">
+  <span>⚠️ 字数超标！当前 <strong id="wcCurrent"></strong> 字，限制 <strong id="wcLimit"></strong> 字</span>
+  <button class="btn btn-a" style="padding:3px 12px;font-size:11px" onclick="trimToLimit()">一键精简到限制内</button>
+</div>
+
+<!-- Main: Editor + Preview -->
+<div class="main">
+  <div class="editor-pane">
+    <div class="editor-header">
+      <span>编辑区</span>
+      <span id="editLabel">直接打字就行</span>
+    </div>
+    <textarea class="editor" id="editor" placeholder="在这里写你想发的内容...&#10;&#10;不用管格式，先把想说的话写下来。&#10;选好模板后，上方会出现结构提示。&#10;写完点下方「润色」，AI 帮你整理。"></textarea>
+  </div>
+  <div class="preview-pane">
+    <div class="preview-header">
+      <span>预览</span>
+      <span>实时渲染</span>
+    </div>
+    <div class="preview-body" id="previewBody">
+      <div class="empty-hint">左边写内容，这里实时预览</div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Bar -->
+<div class="bottombar">
+  <div class="platform-tags" id="platformTags">
+    <span class="ptag ptag-ok">小红书 ✅</span>
+    <span class="ptag ptag-ok">公众号 ✅</span>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-a" id="polishBtn" onclick="polish()">润色</button>
+    <button class="btn btn-img" onclick="openImgPanel()">🎨 配图</button>
+    <button class="btn btn-g" onclick="exportMd()">下载 .md</button>
+    <button class="btn btn-o" onclick="copyAll()">复制全文</button>
+  </div>
+</div>
+
+<!-- Polishing Overlay -->
+<div class="polish-overlay" id="polishOverlay">
+  <div class="polish-spinner"></div>
+  <div class="polish-text" id="polishStatus">AI 正在润色...</div>
+  <div class="polish-sub">通常需要 10-30 秒</div>
+</div>
+
+<!-- Image Panel -->
+<div class="img-panel" id="imgPanel">
+  <div class="img-panel-head">
+    <h3>🎨 小黑风格配图</h3>
+    <button class="img-panel-close" onclick="closeImgPanel()">&times;</button>
+  </div>
+  <div class="img-panel-body" id="imgPanelBody">
+    <div style="font-size:13px;color:var(--sub);line-height:1.7;margin-bottom:14px;">
+      点击「生成配图 Prompt」，AI 会分析你的文章，按 <b>Ian 小黑</b> 风格生成正文配图的 Prompt。<br>
+      复制 Prompt 到 WorkBuddy 或其他平台生图即可。
+    </div>
+    <button class="btn btn-img" style="width:100%;margin-bottom:14px" onclick="generateImages()" id="genImgBtn">🖍 生成配图 Prompt</button>
+    <div id="imgResultsArea"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== State =====
+var apiKey = '';
+var editor = document.getElementById('editor');
+var previewBody = document.getElementById('previewBody');
+var charStat = document.getElementById('charStat');
+var platformTags = document.getElementById('platformTags');
+var templateHint = document.getElementById('templateHint');
+var wcWarning = document.getElementById('wcWarning');
+var isPolishing = false;
+
+// 每个模板的字数上限
+var TPL_LIMITS = {
+  'checklist-resource': 800,
+  'checklist-number': 800,
+  'checklist-pitfall': 800,
+  'literary-emotional': 700,
+  'literary-narrative': 700,
+  'literary-philosophical': 700,
+  'practical-tutorial': 850,
+  'practical-comparison': 850,
+  'practical-guide': 850
+};
+var DEFAULT_LIMIT = 800;
+
+// ===== Load saved key =====
+(function init() {
+  try {
+    var saved = localStorage.getItem('ds_api_key');
+    if (saved) {
+      apiKey = saved;
+      document.getElementById('apiKeyInput').value = saved;
+      document.getElementById('apiStatus').textContent = '✅ 已设置';
+      document.getElementById('apiStatus').className = 'status ok';
+      document.getElementById('apiBanner').classList.add('hidden');
+    }
+  } catch(e) {}
+})();
+
+// ===== Save API Key =====
+function saveApiKey() {
+  var key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { showToast('请粘贴你的 DeepSeek API Key'); return; }
+  apiKey = key;
+  try { localStorage.setItem('ds_api_key', key); } catch(e) {}
+  document.getElementById('apiStatus').textContent = '✅ 已设置';
+  document.getElementById('apiStatus').className = 'status ok';
+  document.getElementById('apiBanner').classList.add('hidden');
+  showToast('Key 已保存，可以开始润色了！');
+}
+
+// ===== Show banner if no key =====
+function ensureApiKey() {
+  if (apiKey) return true;
+  document.getElementById('apiBanner').classList.remove('hidden');
+  document.getElementById('apiKeyInput').focus();
+  showToast('请先在上方填写 API Key');
+  return false;
+}
+
+// ===== Template hints =====
+var hints = {
+  'checklist-resource': '<b>干货合集型</b> → 标题：数字+价值 | 开头：痛点共鸣（1句）| 正文：逐条罗列，每条 emoji+1行核心+2行说明 | 结尾：收藏引导',
+  'checklist-number': '<b>数字清单型</b> → 标题：数字+行动+效果 | 开头：场景+数字预告 | 正文：编号清晰，每条3-5句 | 结尾：互动引导',
+  'checklist-pitfall': '<b>避坑排雷型</b> → 标题：「千万别…」+ 品类 | 开头：踩坑经历 | 正文：❌坑点 + ✅正确做法 | 结尾：总结原则',
+  'literary-emotional': '<b>情感共鸣型</b> → 开头：1句话情绪钩子 | 转折：改变的契机 | 过程：细节+感官 | 结尾：金句升华',
+  'literary-narrative': '<b>叙事散文型</b> → 开头：场景切入（5感描写）| 铺陈：一个意象贯穿 | 收束：回到意象，留余味',
+  'literary-philosophical': '<b>哲理感悟型</b> → 开头：日常+反常识 | 展开：层层思辨 | 洞察：一个停下来的判断 | 结尾：留白',
+  'practical-tutorial': '<b>教程步骤型</b> → 标题：「保姆级/手把手」+内容 | 成果展示 | Step1/2/3… | 注意事项',
+  'practical-comparison': '<b>对比测评型</b> → 标题：纠结场景+对比 | 引入 | 多维PK表格 | 明确结论',
+  'practical-guide': '<b>避坑指南型</b> → 标题：「千万别」+场景 | 反面案例 | 逐一排雷 | 正面指引',
+};
+
+// ===== Live preview & word count check =====
+editor.addEventListener('input', function() {
+  var text = editor.value;
+  var chars = text.replace(/\s/g, '').length;
+  charStat.textContent = chars + ' 字';
+  charStat.classList.toggle('over', chars > 1000);
+  updatePlatformTags(chars);
+  renderPreview(text);
+  checkWordCount(chars);
+});
+
+function onTemplateChange() {
+  var val = document.getElementById('templateSelect').value;
+  if (val && hints[val]) {
+    templateHint.innerHTML = hints[val];
+    templateHint.classList.add('visible');
+  } else {
+    templateHint.classList.remove('visible');
+  }
+  // Re-check word count when template changes
+  checkWordCount(editor.value.replace(/\s/g, '').length);
+}
+
+function getTplLimit() {
+  var tpl = document.getElementById('templateSelect').value;
+  return TPL_LIMITS[tpl] || DEFAULT_LIMIT;
+}
+
+function checkWordCount(chars) {
+  var limit = getTplLimit();
+  if (chars > limit && chars > 0) {
+    wcWarning.classList.add('show');
+    document.getElementById('wcCurrent').textContent = chars;
+    document.getElementById('wcLimit').textContent = limit;
+  } else {
+    wcWarning.classList.remove('show');
+  }
+}
+
+function updatePlatformTags(chars) {
+  var xhs, wechat;
+  if (chars <= 1000) { xhs = '<span class="ptag ptag-ok">小红书 ✅</span>'; }
+  else { xhs = '<span class="ptag ptag-over">小红书 ⚠️ 超' + (chars-1000) + '字</span>'; }
+  if (chars <= 1500) { wechat = '<span class="ptag ptag-ok">公众号 ✅</span>'; }
+  else if (chars <= 2000) { wechat = '<span class="ptag ptag-warn">公众号 ⚠️ 偏长</span>'; }
+  else { wechat = '<span class="ptag ptag-over">公众号 ⚠️ 建议分篇</span>'; }
+  platformTags.innerHTML = xhs + wechat;
+}
+
+function renderPreview(text) {
+  if (!text.trim()) {
+    previewBody.innerHTML = '<div class="empty-hint">左边写内容，这里实时预览</div>';
+    return;
+  }
+  previewBody.innerHTML = '<div class="md">' + md2html(text) + '</div>';
+}
+
+// ===== Markdown renderer =====
+function md2html(src) {
+  var h = esc(src);
+  h = h.replace(/```(\w*)\n([\s\S]*?)```/g, function(m, lang, code) {
+    return '<pre><code>' + code.trim() + '</code></pre>';
+  });
+  h = h.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  h = h.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  h = h.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  h = h.replace(/`(.+?)`/g, '<code>$1</code>');
+  h = h.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+  h = h.replace(/^---$/gm, '<hr>');
+  h = h.replace(/^- (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  h = h.replace(/((?:<li>.*?<\/li>\s*)+)/g, '<ul>$1</ul>');
+  h = h.replace(/\n\n/g, '</p><p>');
+  h = h.replace(/\n/g, '<br>');
+  h = '<p>' + h + '</p>';
+  h = h.replace(/<p>\s*<\/p>/g, '');
+  h = h.replace(/<p>\s*(<h[1-3]>)/g, '$1');
+  h = h.replace(/(<\/h[1-3]>)\s*<\/p>/g, '$1');
+  h = h.replace(/<p>\s*(<hr>)/g, '$1');
+  h = h.replace(/(<hr>)\s*<\/p>/g, '$1');
+  h = h.replace(/<p>\s*(<ul>)/g, '$1');
+  h = h.replace(/(<\/ul>)\s*<\/p>/g, '$1');
+  h = h.replace(/<p>\s*(<pre>)/g, '$1');
+  h = h.replace(/(<\/pre>)\s*<\/p>/g, '$1');
+  h = h.replace(/<p>\s*(<blockquote>)/g, '$1');
+  h = h.replace(/(<\/blockquote>)\s*<\/p>/g, '$1');
+  return h;
+}
+
+function esc(t) {
+  var d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+// ===== Template-specific prompts — 极度强化字数控制 =====
+var TPL_PROMPTS = {
+  'checklist-resource': [
+    '【写作模式：干货合集型】',
+    '',
+    '【字数铁律】输出完毕后必须自查：总字数绝对不能超过 750 字。如果超过 750 字，立刻删减废话、压缩描述。宁可少写也不能超字数。',
+    '',
+    '【标题格式】数字+核心价值，例如「5个让我效率翻倍的方法」',
+    '',
+    '【正文结构】：',
+    '1. 开头（1-2句）：痛点引入',
+    '2. 主体（逐条罗列）：emoji序号 + 加粗小标题（4字内）+ 每条只写 2-3 句话',
+    '   共 3-5 条，每条之间用 --- 分隔',
+    '3. 结尾（1句）：收藏引导',
+    '',
+    '【风格要求】短句为主，每句话不超过20个字。不要铺垫不要过渡段。直接给干货。',
+    '',
+    '【用户原始内容】：'
+  ].join('\n'),
+
+  'checklist-number': [
+    '【写作模式：数字清单型】',
+    '',
+    '【字数铁律】输出完毕后必须自查：总字数绝对不能超过 750 字。超过则立即删减。每条控制在 40-60 字以内。',
+    '',
+    '【标题格式】数字+行动+效果，例如「每天做这3件事，效率直接翻倍」',
+    '',
+    '【正文结构】：',
+    '1. 开头（1句）：数字预告',
+    '2. 主体（3-5 条）：编号 + 标题 + 每条只写 2-3 行实操说明',
+    '3. 结尾（1句）：效果承诺',
+    '',
+    '【风格要求】轻快有力，短句，像朋友分享经验。禁止长段落论述。',
+    '',
+    '【用户原始内容】：'
+  ].join('\n'),
+
+  'checklist-pitfall': [
+    '【写作模式：避坑排雷型】',
+    '',
+    '【字数铁律】输出完毕后必须自查：总字数绝对不能超过 750 字。超过则立即删减。每个坑的描述不超过 60 字。',
+    '',
+    '【标题格式】「千万别...」+ 品类',
+    '',
+    '【正文结构】：',
+    '1. 开头（1-2句）：踩坑经历',
+    '2. 主体（3 个坑）：❌ 错误做法（1句）→ ✅ 正确做法（1-2句）',
+    '3. 结尾（1句）：总结原则',
+    '',
+    '【风格要求】真实感，警示但不过度焦虑。',
+    '',
+    '【用户原始内容】：'
+  ].join('\n'),
+
+  'literary-emotional': [
+    '【写作模式：情感共鸣型】',
+    '',
+    '【字数铁律】输出完毕后必须自查：总字数绝对不能超过 650 字。这是硬性红线。超过则必须删减。每个段落不超过 4 句话。',
+    '',
+    '【标题格式】情绪钩子式标题，一句话就能让人想点进来',
+    '',
+    '【正文结构】：',
+    '1. 开头（1-2句）：一个情绪画面',
+    '2. 转折（3-4句）：内心变化过程',
+    '3. 觉悟（2-3句）：具体感悟',
+    '4. 金句收尾（1句）：用 > 引用格式呈现',
+    '',
+    '【风格要求】温柔有质感，不用列表不用emoji堆砌。靠文字氛围打动人。',
+    '',
+    '【用户原始内容】：'
+  ].join('\n'),
+
+  'literary-narrative': [
+    '【写作模式：叙事散文型】',
+    '',
+    '【字数铁律】输出完毕后必须自查：总字数绝对不能超过 650 字。硬性红线。全文不超过 6 个段落，每个段落不超过 4 句。',
+    '',
+    '【标题格式】意象+动作',
+    '',
+    '【正文结构】：',
+    '1. 场景切入（3-4句）：五感描写打开场景',
+    '2. 叙事铺陈（4-6句）：围绕一个意象展开',
+    '3. 回归余味（2-3句）：回到开头的意象',
+    '',
+    '【风格要求】克制、留白、有余味。不用列表、不用emoji、不用加粗。靠文字本身的力量。',
+    '',
+    '【用户原始内容】：'
+  ].join('\n'),
+
+  'literary-philosophical': [
+    '【写作模式：哲理感悟型】',
+    '',
+    '【字数铁律】输出完毕后必须自查：总字数绝对不能超过 650 字。硬性红线。全文不超过 5 个段落。',
+    '',
+    '【标题格式】反常识或提问式',
+    '',
+    '【正文结构】：',
+    '1. 反常识开头（2-3句）',
+    '2. 层层思辨（4-6句）：从现象到本质递进',
+    '3. 洞察停顿（2句）',
+    '4. 留白结尾（1-2句）：不总结，开放式收束',
+    '',
+    '【风格要求】冷静清醒不煽情。像一个思考者在自言自语。',
+    '',
+    '【用户原始内容】：'
+  ].join('\n'),
+
+  'practical-tutorial': [
+    '【写作模式：教程步骤型】',
+    '',
+    '【字数铁律】输出完毕后必须自查：总字数绝对不能超过 850 字。硬性红线。每个 Step 不超过 80 字。',
+    '',
+    '【标题格式】「保姆级/手把手」+ 内容成果',
+    '',
+    '【正文结构】：',
+    '1. 效果展示（1句）',
+    '2. 准备工作（1句）',
+    '3. 步骤拆解（Step 1 / 2 / 3 ... 每个 Step 只写关键操作，用 ## 分隔）',
+    '4. 常见问题（2-3 条，每条1句）',
+    '',
+    '【风格要求】清晰有条理，像老师在教。关键操作 **加粗**。',
+    '',
+    '【用户原始内容】：'
+  ].join('\n'),
+
+  'practical-comparison': [
+    '【写作模式：对比测评型】',
+    '',
+    '【字数铁律】输出完毕后必须自查：总字数绝对不能超过 850 字。硬性红线。',
+    '',
+    '【标题格式】纠结场景+对比对象',
+    '',
+    '【正文结构】：',
+    '1. 纠结引入（2句）',
+    '2. 多维 PK 表格（必须包含 Markdown 表格）',
+    '3. 点评（每项 2-3 句）',
+    '4. 结论（2-3句）：明确推荐',
+    '',
+    '【风格要求】客观但有态度，帮读者做决策。',
+    '',
+    '【用户原始内容】：'
+  ].join('\n'),
+
+  'practical-guide': [
+    '【写作模式：避坑指南型】',
+    '',
+    '【字数铁律】输出完毕后必须自查：总字数绝对不能超过 850 字。硬性红线。每个坑不超过 70 字。',
+    '',
+    '【标题格式】「千万别/一定不要」+ 场景',
+    '',
+    '【正文结构】：',
+    '1. 反面案例（2句）',
+    '2. 逐一排雷（3 个坑，## 编号. 坑名 格式）',
+    '3. 正面指引（2-3句）',
+    '4. 一句话总结',
+    '',
+    '【风格要求】警示+实用，像前辈在提醒新人。',
+    '',
+    '【用户原始内容】：'
+  ].join('\n')
+};
+
+// ===== Default (no template) =====
+var DEFAULT_PROMPT = [
+  '【写作模式：自由风格】',
+  '',
+  '【字数铁律】输出完毕后必须自查：总字数绝对不能超过 800 字。硬性红线。超过则立即删减冗余内容。',
+  '',
+  '将用户的口述内容润色为一篇适合小红书或微信公众号发布的文章。',
+  '',
+  '【硬性要求】',
+  '- 使用 Markdown 格式：**加粗**、## 标题、--- 分割线、> 引用',
+  '- 语气：专业但亲切，像朋友分享，不用书面腔',
+  '- 忠于核心观点，润色是让表达更好，不是替换内容',
+  '- 直接输出润色后的 Markdown 文本，不要额外解释',
+  '',
+  '【用户原始内容】：'
+].join('\n');
+
+// ===== 一键精简功能 =====
+function trimToLimit() {
+  if (!ensureApiKey()) return;
+  if (!editor.value.trim()) return;
+
+  var limit = getTplLimit();
+  var currentText = editor.value.trim();
+
+  // Show overlay
+  isPolishing = true;
+  document.getElementById('polishOverlay').classList.add('show');
+  document.getElementById('polishStatus').textContent = '正在精简到 ' + limit + ' 字以内...';
+
+  var trimPrompt = '你是一位文字精炼师。下面是一篇文章，当前字数为 ' + currentText.replace(/\s/g, '').length + ' 字。\n\n' +
+    '【任务】将这篇文章精简压缩到 ' + limit + ' 字以内（不含空格标点的纯中文字数）。\n\n' +
+    '【原则】\n' +
+    '1. 保留所有核心观点和关键信息\n' +
+    '2. 删除所有废话、重复表达、过渡句\n' +
+    '3. 压缩每个句子，用更短的表述替代\n' +
+    '4. 保持原有的 Markdown 格式\n' +
+    '5. 保持原有的语气和风格\n' +
+    '6. 输出完毕后再次确认字数，如仍超出继续删减\n\n' +
+    '直接输出精简后的完整文章，不要解释。';
+
+  var body = JSON.stringify({
+    model: 'deepseek-chat',
+    messages: [
+      { role: 'user', content: trimPrompt + '\n\n---\n需要精简的文章如下：\n' + currentText }
+    ],
+    temperature: 0.3,
+    stream: true
+  });
+
+  var result = '';
+
+  fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+    body: body
+  }).then(function(resp) {
+    if (!resp.ok) throw new Error('API 错误 (' + resp.status + ')');
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder();
+    editor.value = '';
+
+    function readChunk() {
+      return reader.read().then(function(chunk) {
+        if (chunk.done) { finishPolish(editor.value); return; }
+        var str = decoder.decode(chunk.value, { stream: true });
+        var lines = str.split('\n');
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (!line || !line.startsWith('data:')) continue;
+          var data = line.substring(5).trim();
+          if (data === '[DONE]') { finishPolish(editor.value); return; }
+          try {
+            var json = JSON.parse(data);
+            var c = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content;
+            if (c) { result += c; editor.value = result; renderPreview(result);
+              var ch = result.replace(/\s/g, '').length; charStat.textContent = ch + ' 字'; updatePlatformTags(ch); checkWordCount(ch); }
+          } catch(e){}
+        }
+        return readChunk();
+      });
+    }
+    return readChunk();
+  }).catch(function(err) {
+    finishPolish(null);
+    showToast('精简失败：' + err.message);
+  });
+}
+
+// ===== AI Polish =====
+function polish() {
+  if (isPolishing) return;
+  if (!ensureApiKey()) return;
+
+  var text = editor.value.trim();
+  if (!text) { showToast('先写点内容再润色呀'); return; }
+
+  var tpl = document.getElementById('templateSelect').value;
+  var sysPrompt = tpl && TPL_PROMPTS[tpl] ? TPL_PROMPTS[tpl] : DEFAULT_PROMPT;
+
+  // Append user content
+  sysPrompt += '\n' + text;
+
+  // Show overlay
+  isPolishing = true;
+  document.getElementById('polishBtn').disabled = true;
+  document.getElementById('polishOverlay').classList.add('show');
+  document.getElementById('polishStatus').textContent = 'AI 正在润色...';
+
+  var body = JSON.stringify({
+    model: 'deepseek-chat',
+    messages: [
+      { role: 'system', content: sysPrompt }
+    ],
+    temperature: 0.7,
+    stream: true
+  });
+
+  var result = '';
+  var editorEl = editor;
+
+  fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+    body: body
+  }).then(function(resp) {
+    if (!resp.ok) {
+      return resp.text().then(function(t) {
+        throw new Error('API 错误 (' + resp.status + '): ' + t.substring(0, 200));
+      });
+    }
+
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder();
+
+    editorEl.value = '';
+    document.getElementById('editLabel').textContent = '润色中...';
+
+    function readChunk() {
+      return reader.read().then(function(chunk) {
+        if (chunk.done) {
+          finishPolish(editorEl.value);
+          return;
+        }
+
+        var str = decoder.decode(chunk.value, { stream: true });
+        var lines = str.split('\n');
+
+        for (var i = 0; i < lines.length; i++) {
+          var line = lines[i].trim();
+          if (!line || !line.startsWith('data:')) continue;
+          var data = line.substring(5).trim();
+          if (data === '[DONE]') {
+            finishPolish(editorEl.value);
+            return;
+          }
+          try {
+            var json = JSON.parse(data);
+            var content = json.choices && json.choices[0] && json.choices[0].delta && json.choices[0].delta.content;
+            if (content) {
+              result += content;
+              editorEl.value = result;
+              editorEl.scrollTop = editorEl.scrollHeight;
+              renderPreview(result);
+              var chars = result.replace(/\s/g, '').length;
+              charStat.textContent = chars + ' 字';
+              updatePlatformTags(chars);
+              checkWordCount(chars);
+            }
+          } catch(e) {}
+        }
+
+        return readChunk();
+      });
+    }
+
+    return readChunk();
+
+  }).catch(function(err) {
+    finishPolish(null);
+    if (err.message.indexOf('Failed to fetch') !== -1 || err.message.indexOf('NetworkError') !== -1) {
+      showToast('网络连接失败，请检查网络或确认 DeepSeek API Key 正确');
+    } else {
+      showToast('润色失败：' + err.message);
+    }
+  });
+}
+
+function finishPolish(result) {
+  isPolishing = false;
+  document.getElementById('polishBtn').disabled = false;
+  document.getElementById('polishOverlay').classList.remove('show');
+  if (result) {
+    document.getElementById('editLabel').textContent = '润色完成 ✓';
+    showToast('润色完成！（如字数超标可点上方「一键精简」按钮）');
+    setTimeout(function() { document.getElementById('editLabel').textContent = '直接打字就行'; }, 3000);
+  }
+}
+
+// ===== Image Generation (Ian Xiaohei Style — embedded in workbench) =====
+var IAN_SYSTEM_PROMPT = [
+  'You are an expert illustration strategist for Chinese article illustrations.',
+  '',
+  'Given a Chinese article, you must:',
+  '1. Identify 3-4 "cognitive anchors" — key points, contrasts, turning points, or metaphors that benefit from visual explanation',
+  '2. For each anchor, generate ONE English image generation prompt following the exact template below.',
+  '3. Output ONLY a JSON array. No markdown, no explanation, no code fences.',
+  '',
+  'Each object in the array must have these fields:',
+  '- "section": the heading or topic of the section (Chinese, short)',
+  '- "structureType": one of ["Workflow","Before-After","Concept Metaphor","Method Layers","Character State","Map Route","Mini Comic"]',
+  '- "coreIdea": the single idea this image explains (English, 1 sentence)',
+  '- "composition": what xiaohei is doing, main objects, how information flows (English, 1-2 sentences)',
+  '- "elements": 3-4 visual elements (English, comma separated)',
+  '- "labels": 3-5 short Chinese handwritten labels (Chinese, slash separated)',
+  '- "fullPrompt": the COMPLETE image generation prompt in English, following the template below',
+  '',
+  'The fullPrompt field MUST follow this template exactly:',
+  '---',
+  'Generate one standalone 16:9 horizontal Chinese article illustration.',
+  'Visual DNA: Pure white background. Minimalist black hand-drawn line art. Slightly wobbly pen lines. Lots of empty white space. Sparse red/orange/blue handwritten Chinese annotations. Clean absurd product-sketch feeling. No gradients, no shadows, no paper texture, no complex background, no commercial vector style, no PPT infographic look, no cute mascot poster, no children illustration, no realistic UI.',
+  'Recurring IP character: xiaohei, a small solid-black absurd creature with white dot eyes, tiny thin legs, blank serious expression, slightly uneven hand-drawn body shape. xiaohei must perform the core conceptual action, not decorate the scene. Make xiaohei serious, deadpan, and slightly bizarre, not cute.',
+  'Theme: {theme}',
+  'Structure type: {structureType}',
+  'Core idea: {coreIdea}',
+  'Composition: {composition}',
+  'Suggested elements: {elements}',
+  'Chinese handwritten labels: {labels}',
+  'Color use: Black for main line art and xiaohei. Orange for main flow/path/arrows. Red only for key warnings/problems/results. Blue only for secondary notes or feedback/system state.',
+  'Constraints: One image explains only one core structure. Keep the main subject around 40%-60% of the canvas. Preserve at least 35% blank white space. Use at most 5-8 short handwritten Chinese labels. Do not write a title in the top-left corner. Do not write the structure type on the image. Do not make it a formal diagram, course slide, or dense explainer. It should be clear but not instructional, interesting but not childish, strange but clean.',
+  '---',
+  '',
+  'CRITICAL RULES:',
+  '- xiaohei (small black creature) MUST be in every image performing the core action',
+  '- Every image must have a pure white background',
+  '- Every image must have lots of whitespace (at least 35%)',
+  '- Do NOT copy or reuse compositions from prior examples — invent fresh metaphors',
+  '- Keep Chinese labels short (2-8 characters each), at most 5-8 total',
+  '- Output ONLY valid JSON array, nothing else'
+].join('\n');
+
+function openImgPanel() {
+  if (!editor.value.trim()) { showToast('请先有内容再生成配图'); return; }
+  if (!ensureApiKey()) return;
+  document.getElementById('imgPanel').classList.add('show');
+}
+
+function closeImgPanel() {
+  document.getElementById('imgPanel').classList.remove('show');
+}
+
+function generateImages() {
+  var content = editor.value.trim();
+  if (!content) { showToast('请先写内容'); return; }
+  if (!apiKey) { showToast('请先设置 API Key'); return; }
+
+  var area = document.getElementById('imgResultsArea');
+  var btn = document.getElementById('genImgBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ AI 正在分析文章...';
+  area.innerHTML = '<div style="text-align:center;padding:20px;color:var(--sub)"><div class="polish-spinner" style="margin:0 auto 12px"></div>正在分析文章结构，生成配图方案...</div>';
+
+  // Step 1: Use DeepSeek to analyze article and generate prompts
+  var body = JSON.stringify({
+    model: 'deepseek-chat',
+    messages: [
+      { role: 'system', content: IAN_SYSTEM_PROMPT },
+      { role: 'user', content: content }
+    ],
+    temperature: 0.8,
+    stream: false
+  });
+
+  fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+    body: body
+  }).then(function(resp) {
+    if (!resp.ok) throw new Error('API error (' + resp.status + ')');
+    return resp.json();
+  }).then(function(data) {
+    var text = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+    if (!text) throw new Error('Empty response');
+
+    // Parse JSON from response (might be wrapped in markdown code fences)
+    var jsonStr = text.trim();
+    var fenceMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenceMatch) jsonStr = fenceMatch[1].trim();
+
+    var prompts;
+    try {
+      prompts = JSON.parse(jsonStr);
+    } catch(e) {
+      // Try to find JSON array in the text
+      var arrMatch = jsonStr.match(/\[[\s\S]*\]/);
+      if (arrMatch) {
+        prompts = JSON.parse(arrMatch[0]);
+      } else {
+        throw new Error('Cannot parse AI response as JSON');
+      }
+    }
+
+    if (!Array.isArray(prompts) || prompts.length === 0) {
+      throw new Error('No image prompts generated');
+    }
+
+    renderImageResults(prompts);
+
+  }).catch(function(err) {
+    console.error('Image generation error:', err);
+    area.innerHTML = '<div style="padding:20px;text-align:center;color:var(--accent)">分析失败：' + esc2(err.message) + '<br><br><button class="btn btn-a" onclick="generateImages()">重试</button></div>';
+  }).finally(function() {
+    btn.disabled = false;
+    btn.textContent = '🖍 生成配图';
+  });
+}
+
+function renderImageResults(prompts) {
+  var area = document.getElementById('imgResultsArea');
+  var html = '<div style="font-size:12px;color:var(--sub);margin-bottom:12px">已生成 ' + prompts.length + ' 幅配图 Prompt，点击「复制」即可粘贴到其他平台生图</div>';
+
+  for (var i = 0; i < prompts.length; i++) {
+    var p = prompts[i];
+    var section = p.section || ('图 ' + (i + 1));
+    var structureType = p.structureType || '';
+    var coreIdea = p.coreIdea || '';
+    var fullPrompt = p.fullPrompt || '';
+
+    html += '<div class="img-card" style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px;background:var(--bg)">';
+    html += '<div class="img-card-label">第 ' + (i + 1) + ' 幅 · ' + esc2(section) + '</div>';
+    html += '<div style="font-size:12px;color:var(--sub);margin-bottom:8px">结构：' + esc2(structureType) + ' | 核心：' + esc2(coreIdea) + '</div>';
+    if (p.composition) { html += '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">构图：' + esc2(p.composition) + '</div>'; }
+    if (p.elements) { html += '<div style="font-size:11px;color:var(--muted);margin-bottom:4px">元素：' + esc2(p.elements) + '</div>'; }
+    if (p.labels) { html += '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">标签：' + esc2(p.labels) + '</div>'; }
+
+    // Prompt 展示区 + 复制按钮
+    html += '<div style="position:relative">';
+    html += '<textarea id="promptText' + i + '" readonly style="width:100%;min-height:120px;font-size:12px;line-height:1.6;padding:10px;border:1px solid var(--border);border-radius:6px;background:#FAFAF9;color:var(--fg);resize:vertical;font-family:monospace">' + esc2(fullPrompt) + '</textarea>';
+    html += '<button class="btn btn-a" style="position:absolute;top:6px;right:6px;padding:4px 10px;font-size:11px;border-radius:4px" onclick="copyPrompt(' + i + ')">📋 复制</button>';
+    html += '</div>';
+
+    html += '</div>';
+  }
+
+  // 一键复制全部
+  html += '<button class="btn btn-a" style="width:100%;margin-top:4px" onclick="copyAllPrompts()">📋 复制全部 Prompt</button>';
+
+  window._imgPrompts = prompts;
+  area.innerHTML = html;
+}
+
+function copyPrompt(idx) {
+  var ta = document.getElementById('promptText' + idx);
+  if (!ta) return;
+  ta.select();
+  ta.setSelectionRange(0, 99999);
+  try {
+    document.execCommand('copy');
+    showToast('✅ Prompt 已复制');
+  } catch(e) {
+    // Fallback for modern browsers
+    navigator.clipboard.writeText(ta.value).then(function() {
+      showToast('✅ Prompt 已复制');
+    }).catch(function() {
+      showToast('复制失败，请手动选中复制');
+    });
+  }
+}
+
+function copyAllPrompts() {
+  var prompts = window._imgPrompts;
+  if (!prompts || !prompts.length) { showToast('没有 Prompt 可复制'); return; }
+
+  var allText = '';
+  for (var i = 0; i < prompts.length; i++) {
+    var p = prompts[i];
+    allText += '===== 第 ' + (i + 1) + ' 幅 · ' + (p.section || '') + ' =====\n';
+    allText += (p.fullPrompt || '') + '\n\n';
+  }
+
+  navigator.clipboard.writeText(allText).then(function() {
+    showToast('✅ 全部 Prompt 已复制（共 ' + prompts.length + ' 幅）');
+  }).catch(function() {
+    // Fallback
+    var ta = document.createElement('textarea');
+    ta.value = allText;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('✅ 全部 Prompt 已复制');
+  });
+}
+
+function onImgLoaded(idx) { /* no longer used */ }
+function onImgError(idx) { /* no longer used */ }
+function downloadImg(idx) { /* no longer used */ }
+function regenImg(idx) { /* no longer used */ }
+
+function esc2(t) {
+  var d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+// ===== File Actions =====
+function exportMd() {
+  var text = editor.value.trim();
+  if (!text) { showToast('没有内容可以导出'); return; }
+  var blob = new Blob([text], {type:'text/markdown;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'content-' + new Date().toISOString().split('T')[0] + '.md';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('.md 文件已下载');
+}
+
+function copyAll() {
+  var text = editor.value.trim();
+  if (!text) { showToast('没有内容可以复制'); return; }
+  navigator.clipboard.writeText(text).then(function() {
+    showToast('全文已复制');
+  }).catch(function() {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('全文已复制');
+  });
+}
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show')}, 2500);
+}
+</script>
+</body>
+</html>
